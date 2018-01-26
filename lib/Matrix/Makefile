@@ -17,4 +17,4 @@ $(BIN)%.o : $(SOURCE)%.c $(INC)%.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 clean:
-	cd $(BIN) && del *.o
+	cd $(BIN) && del *.o && del *.a

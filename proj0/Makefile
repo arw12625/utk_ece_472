@@ -16,12 +16,12 @@ PROG = proj0
 
 .PHONY : ALL $(LIBRARIES)
 
-ALL : $(patsubst %, $(BIN)%, $(PROG)) $(LIBRARIES)
+ALL : $(patsubst %, $(BIN)%, $(PROG))
 
 $(LIBRARIES) :
 	$(MAKE) -C $(LIB)$@/
 	
-$(BIN)%.o: $(SOURCE)%.c
+$(BIN)%.o: $(SOURCE)%.c $(LIBRARIES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 clean:
