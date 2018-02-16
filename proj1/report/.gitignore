@@ -1,0 +1,4 @@
+images/
+*.aux
+*.log
+*.gz

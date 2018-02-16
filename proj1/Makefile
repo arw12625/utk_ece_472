@@ -1,18 +1,19 @@
 SOURCE = ./src/
 BIN = ./bin/
 
-LIBRARIES = Matrix
+LIBRARIES = Image Matrix
 
 LIB = ../lib/
-LIB_INC = $(LIB)$(LIBRARIES)/include/
-LIB_BIN = $(LIB)$(LIBRARIES)/bin/
+LIB_INC = $(patsubst %, $(LIB)%/include/, $(LIBRARIES))
+LIB_BIN = $(patsubst %, $(LIB)%/bin/, $(LIBRARIES))
 
+LDLIBS = $(join $(LIB_BIN), $(addsuffix .a, $(LIBRARIES)))
 CC = gcc
-CPPFLAGS = -I$(SOURCE) -I$(LIB_INC)
+CPPFLAGS = -I$(SOURCE) $(addprefix -I, $(LIB_INC))
 OBJECTS := $(patsubst $(SOURCE)%.c, $(BIN)%.o, $(wildcard $(SOURCE)*.c))
-LDLIBS = $(patsubst %, $(LIB_BIN)%.a, $(LIBRARIES))
 
-PROG = proj1
+
+PROG = proj1 proj1_test
 
 .PHONY : ALL $(LIBRARIES)
 
