@@ -9,7 +9,7 @@
 
 int main( int argc, char *argv[] )  {
 
-	char* basePath;
+	/*char* basePath;
 	if( argc == 2 ) {
 		basePath = argv[1];
 	} else {
@@ -91,5 +91,5 @@ int main( int argc, char *argv[] )  {
 	
 	freeImage(histogramImage);
 	freeImage(baseImage);
-	
+	*/
 }

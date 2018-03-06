@@ -26,6 +26,14 @@ int main( int argc, char *argv[] )  {
 	//compute and write base image histogram to file
 	computeAndWriteImageHistogram(baseImage, "images/result/histogram/base_hist.dat");
 	
+	Image* equalIm = duplicateImage(baseImage);
+	//perform histogram equalization
+	histogramEqualizeImage(equalIm);
+	//write the equalized image to a BMP file
+	writeBMPImage("images/result/equalized.bmp", equalIm);
+	//compute and write equalized image histogram to file
+	computeAndWriteImageHistogram(equalIm, "images/result/histogram/equ_hist.dat");
+	
 	//PART 1 - divide intensity by 2
 	//duplicate base image for scaling
 	Image* scaleIm = duplicateImage(baseImage);
