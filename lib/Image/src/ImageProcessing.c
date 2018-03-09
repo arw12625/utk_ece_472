@@ -7,7 +7,7 @@ bool sumImages(Image* dest, Image* summand1, Image* summand2) {
 		printf("Cannot sum a NULL image\n");
 		return false;
 	}
-	return sumMatrices_u16(dest->pixels, summand1->pixels, summand2->pixels);
+	return sumMatrices_i16(dest->pixels, summand1->pixels, summand2->pixels);
 }
 
 /*
@@ -35,7 +35,7 @@ bool scaleImage(Image* im, float scaler) {
 		printf("Cannot scale NULL image\n");
 		return false;
 	}
-	return scaleMatrix_u16(im->pixels, scaler);
+	return scaleMatrix_i16(im->pixels, scaler);
 }
 
 //operates on the pixels of the image by the affine interval map from [a1, b1] to [a2, b2]
@@ -44,7 +44,7 @@ bool intervalMapImage(Image* im, im_t a1, im_t b1, im_t a2, im_t b2) {
 		printf("Cannot interval map NULL image\n");
 		return false;
 	}
-	return intervalMapMatrix_u16(im->pixels, a1, b1, a2, b2);
+	return intervalMapMatrix_i16(im->pixels, a1, b1, a2, b2);
 }
 
 //interval maps the pixels of the image from the range of the matrix to the desired range
@@ -54,9 +54,10 @@ bool scaleRangeImage(Image* im, im_t minVal, im_t maxVal) {
 		printf("Cannot scale range of NULL image\n");
 		return false;
 	}
-	return scaleRangeMatrix_u16(im->pixels, minVal, maxVal);
+	return scaleRangeMatrix_i16(im->pixels, minVal, maxVal);
 }
 
+//Image must be in range to apply lookup transform (eg 0 <= val < IMAGE_SCALE)
 bool applyLookupTransform(Image* im, im_t lookup[IMAGE_SCALE]) {
 	if(!im) {
 		printf("Cannot apply lookup transform to NULL image\n");
@@ -64,12 +65,16 @@ bool applyLookupTransform(Image* im, im_t lookup[IMAGE_SCALE]) {
 	}
 	
 	size_t i, j;
-	im_t curVal;
+	size_t curVal;
 	for(i = 0; i < im->pixels->rows; i++) {
 		for(j = 0; j < im->pixels->cols; j++) {
-			curVal = getMatrixEntry_u16(i, j, im->pixels);
-			curVal = lookup[curVal];
-			setMatrixEntry_u16(curVal, i, j, im->pixels);
+			curVal = (size_t)getMatrixEntry_i16(i, j, im->pixels);
+			if(curVal < IMAGE_SCALE) {
+				curVal = lookup[curVal];
+			} else {
+				curVal = 0;
+			}
+			setMatrixEntry_i16((im_t)curVal, i, j, im->pixels);
 		}
 	}
 	return true;
@@ -266,4 +271,153 @@ bool histogramEqualizeImage(Image* source) {
 	
 	return true;
 	
+}
+
+bool applyImageKernel(Image* im, Matrix_d* kernel) {
+	
+	if(!im) {
+		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	if(!kernel) {
+		printf("Cannot apply NULL kernel transform to image\n");
+		return false;
+	}
+	if(kernel->rows % 2 != 1 || kernel->cols % 2 != 1) {
+		printf("Can only apply odd-dimensioned (symmetric) kernels\n");
+		return false;
+	}
+	
+	Image* tempIm = allocateImage(im->pixels->rows, im->pixels->rows);
+	
+	size_t i, j, k, l;
+	size_t kernelDRow = kernel->rows / 2, kernelDCol = kernel->cols / 2;
+	
+	double val;
+	for(i = 0; i < im->pixels->rows; i++) {
+		for(j = 0; j < im->pixels->cols; j++) {
+			val = 0;
+			for(k = 0; k < kernel->rows; k++) {
+				for(l = 0; l < kernel->cols; l++) {
+					if(i + k >= kernelDRow && i + k < im->pixels->rows + kernelDRow
+						&& j + l >= kernelDCol && j + l < im->pixels->cols + kernelDCol) {
+							im_t pixVal = getImagePixel(i + k - kernelDRow, j + l - kernelDCol, im);
+							val += (getMatrixEntry_d(k, l, kernel)* pixVal);
+					}
+				}
+			}
+			setImagePixel((im_t)val, i, j, tempIm);
+		}
+	}
+	
+	copyImagePixels(im, tempIm);
+	
+	scaleRangeImage(im, 0, IMAGE_SCALE - 1);
+	
+	freeImage(tempIm);
+	return true;
+	
+}
+
+bool applyImageKernelFromFile(Image* im, const char* kernelPath) {
+	
+	if(!im) {
+		printf("Cannot apply kernel transform from file to NULL image\n");
+		return false;
+	}
+	Matrix_d* kernel = readMatrix_d(kernelPath);
+	if(!kernel) {
+		printf("Could not open file to read kernel\n");
+		return false;
+	}
+	bool success = applyImageKernel(im, kernel);
+	freeMatrix_d(kernel);
+	
+	if(!success) {
+		printf("Did not successfully apply Image kernel from file\n");
+		return false;
+	}
+	return true;
+}
+
+int pixelComp(const void *a,const void *b) {
+	im_t *x = (im_t *) a;
+	im_t *y = (im_t *) b;
+	if (*x < *y) {
+		return -1;
+	}
+	else if (*x > *y) {
+		return 1;
+	}
+	return 0;
+}
+
+bool applyImageMedianFilter(Image* im, size_t filterRows, size_t filterCols) {
+	
+	if(!im) {
+		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	if(filterRows % 2 != 1 || filterCols % 2 != 1) {
+		printf("Can only apply odd-dimensioned (symmetric) median filter\n");
+		return false;
+	}
+	
+	Image* tempIm = allocateImage(im->pixels->rows, im->pixels->rows);
+	size_t halfFilterRows = filterRows / 2, halfFilterCols = filterCols / 2;
+	
+	size_t i, j;
+	
+	for(i = 0; i < im->pixels->rows; i++) {
+		for(j = 0; j < im->pixels->cols; j++) {
+			//obtain the neighborhood of the pixel padding with zero if necessary
+			Matrix_i16* nbhd = createSubmatrixPadZero_i16(filterRows, filterCols,
+				i - halfFilterRows, j - halfFilterCols, im->pixels);
+			im_t* data = nbhd->mat;
+			//sort the pixels of the neighborhood in place
+			qsort(data, filterRows * filterCols, sizeof(im_t), pixelComp);
+			//the median is the middle element of the sorted neighborhood
+			//Note there are less computationally complex methods for finding the median
+			im_t medianVal = (im_t)data[filterRows * filterCols / 2 + 1];
+			freeMatrix_i16(nbhd);
+			setImagePixel(medianVal, i, j, tempIm);
+		}
+	}
+	
+	copyImagePixels(im, tempIm);
+	freeImage(tempIm);
+	return true;
+}
+
+
+Image* computeGradientImage(Image* im) {
+	
+	Image* gradIm = allocateImage(im->pixels->rows, im->pixels->cols);
+	
+	size_t i, j;
+	double val;
+	for(i = 1; i < im->pixels->rows - 1; i++) {
+		for(j = 1; j < im->pixels->cols - 1; j++) {
+			val = 0.25 * sqrt(
+				(getImagePixel(i + 1,j, im) - getImagePixel(i - 1,j, im)) * (getImagePixel(i + 1,j, im) - getImagePixel(i - 1,j, im))
+				+ (getImagePixel(i,j + 1, im) - getImagePixel(i,j - 1, im)) * (getImagePixel(i,j + 1, im) - getImagePixel(i,j - 1, im)));
+			setImagePixel((im_t)val, i, j, gradIm);
+		}
+	}
+	return gradIm;
+}
+
+Image* computeGradientImageApprox(Image* im) {
+	Image* gradIm = allocateImage(im->pixels->rows, im->pixels->cols);
+	
+	size_t i, j;
+	double val;
+	for(i = 1; i < im->pixels->rows - 1; i++) {
+		for(j = 1; j < im->pixels->cols - 1; j++) {
+			val = 0.5 * (fabs(getImagePixel(i + 1,j, im) - getImagePixel(i - 1,j, im))
+				+ fabs(getImagePixel(i,j + 1, im) - getImagePixel(i,j - 1, im)));
+			setImagePixel((im_t)val, i, j, gradIm);
+		}
+	}
+	return gradIm;
 }

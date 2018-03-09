@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "Image.h"
+#include "Matrix_d.h"
 
 bool sumImages(Image* dest, Image* summand1, Image* summand2);
 //Image* createImageFromSum(Image* summand1, Image* summand2);
@@ -32,4 +33,10 @@ bool computeAndWriteImageHistogram(Image* im, const char* path);
 Image* generateHistogramPlot(double histogram[IMAGE_SCALE]);
 bool histogramEqualizeImage(Image* source);
 
+bool applyImageKernel(Image* im, Matrix_d* kernel);
+bool applyImageKernelFromFile(Image* im, const char* kernelPath);
+bool applyImageMedianFilter(Image* im, size_t filterRows, size_t filterCols);
+
+Image* computeGradientImage(Image* im);
+Image* computeGradientImageApprox(Image* im);
 #endif

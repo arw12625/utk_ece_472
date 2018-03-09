@@ -3,6 +3,7 @@
 #include <stdlib.h>
 //#include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #define __TYPIFY(method, name) method ## name
 #define _TYPIFY(method, name) __TYPIFY(method, name)
@@ -32,7 +33,7 @@ typedef struct Matrix {
 Matrix* TYPIFY(allocateMatrix)(size_t rows, size_t cols);
 bool TYPIFY(freeMatrix)(Matrix* m);
 
-Matrix* TYPIFY(wrapEntriesIntoMatrix)(size_t rows, size_t cols, mat_t* dat);
+//Matrix* TYPIFY(wrapEntriesIntoMatrix)(size_t rows, size_t cols, mat_t* dat);
 Matrix* TYPIFY(createMatrixFromEntries)(size_t rows, size_t cols, mat_t* dat);
 bool TYPIFY(copyMatrixEntries)(Matrix* dest, Matrix* source);
 Matrix* TYPIFY(duplicateMatrix)(Matrix* source);
@@ -43,6 +44,7 @@ mat_t TYPIFY(getMatrixEntry)(size_t row, size_t col, Matrix* m);
 mat_t* TYPIFY(indexMatrix)(size_t row, size_t col, Matrix* m);
 bool TYPIFY(setSubmatrix)(size_t rows, size_t cols, size_t destRow, size_t destCol, Matrix* dest, size_t sourceRow, size_t sourceCol, Matrix* source);
 Matrix* TYPIFY(createSubmatrix)(size_t rows, size_t cols, size_t row, size_t col, Matrix* source);
+Matrix* TYPIFY(createSubmatrixPadZero)(size_t rows, size_t cols, ptrdiff_t row, ptrdiff_t col, Matrix* source);
 
 bool TYPIFY(setAllMatrixEntries)(Matrix* m, mat_t val);
 

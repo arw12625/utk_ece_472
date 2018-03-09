@@ -4,21 +4,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "Matrix_u16.h"
+#include "Matrix_i16.h"
 
 #define IMAGE_SCALE 256
 
 typedef struct Image {
-	Matrix_u16* pixels;
+	Matrix_i16* pixels;
 } Image;
-typedef uint16_t im_t;
+typedef int16_t im_t;
 
 Image* allocateImage(size_t rows, size_t cols);
 bool freeImage(Image* im);
 
-Image* wrapMatrixIntoImage(Matrix_u16* m);
-Image* createImageFromMatrixEntries(Matrix_u16* m);
-Image* wrapEntriesIntoImage(size_t rows, size_t cols, im_t* dat);
+Image* wrapMatrixIntoImage(Matrix_i16* m);
+Image* createImageFromMatrixEntries(Matrix_i16* m);
+//Image* wrapEntriesIntoImage(size_t rows, size_t cols, im_t* dat);
 Image* createImageFromEntries(size_t rows, size_t cols, im_t* dat);
 bool copyImagePixels(Image* dest, Image* source);
 Image* duplicateImage(Image* source);

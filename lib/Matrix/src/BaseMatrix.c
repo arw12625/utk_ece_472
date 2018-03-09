@@ -20,7 +20,7 @@ Matrix* TYPIFY(allocateMatrix)(size_t rows, size_t cols) {
 	return m;
 }
 
-
+/*
 Matrix* TYPIFY(wrapEntriesIntoMatrix)(size_t rows, size_t cols, mat_t* dat) {
 	if(!dat) {
 		printf("Cannot wrap NULL entries into matrix\n");
@@ -29,17 +29,15 @@ Matrix* TYPIFY(wrapEntriesIntoMatrix)(size_t rows, size_t cols, mat_t* dat) {
 	Matrix* m = TYPIFY(allocateEmptyMatrix)(rows, cols);
 	m->mat = dat;
 	return m;
-}
+}*/
 
 Matrix* TYPIFY(createMatrixFromEntries)(size_t rows, size_t cols, mat_t* dat) {
 	if(!dat) {
 		printf("Cannot create matrix from NULL entries\n");
 		return NULL;
 	}
-	Matrix* m = malloc(sizeof(Matrix));
-	m->rows = rows;
-	m->cols = cols;
-	m->mat = dat;
+	Matrix* m = TYPIFY(allocateMatrix)(rows, cols);
+	memcpy(m->mat, dat, sizeof(mat_t) * rows * cols);
 	return m;
 }
 
@@ -115,6 +113,31 @@ Matrix* TYPIFY(createSubmatrix)(size_t rows, size_t cols, size_t row, size_t col
 	} else {
 		return NULL;
 	}
+}
+
+
+Matrix* TYPIFY(createSubmatrixPadZero)(size_t rows, size_t cols, ptrdiff_t row, ptrdiff_t col, Matrix* source) {
+	if(!source) {
+		printf("Cannot create submatrix from NULL source\n");
+		return false;
+	}
+	Matrix* sub = TYPIFY(allocateMatrix)(rows, cols);
+	
+	if(row > (ptrdiff_t)source->rows || col > (ptrdiff_t)source->cols || row + rows <= 0 || col + cols <= 0) {
+		return sub;
+	}
+	
+	size_t sourceRowStart = maxVal(0, row), sourceRowEnd = minVal(source->rows, row + rows);
+	size_t destRowStart = maxVal(0, -row), destRowEnd = minVal(rows, source->rows - row);
+	size_t sourceColStart = maxVal(0, col), sourceColEnd = minVal(source->cols, col + cols);
+	size_t destColStart = maxVal(0, -col), destColEnd = minVal(cols, source->cols - col);
+	
+
+	TYPIFY(setSubmatrix)(destRowEnd - destRowStart, destColEnd - destColStart,
+		destRowStart, destColStart, sub,
+		sourceRowStart, sourceColStart, source);
+		
+	return sub;
 }
 
 bool TYPIFY(setAllMatrixEntries)(Matrix* m, mat_t val) {
@@ -312,9 +335,9 @@ bool TYPIFY(printSubmatrix)(size_t rows, size_t cols, size_t row, size_t col, Ma
 	size_t i, j;
 	for(i = 0; i < rows; i++) {
 		for(j = 0; j < cols - 1; j++) {
-			printf("%i, ", TYPIFY(getMatrixEntry)(i + row, j + col, m));
+			printf("%f, ", (double)TYPIFY(getMatrixEntry)(i + row, j + col, m));
 		}
-		printf("%i\n", TYPIFY(getMatrixEntry)(i + row, j + col, m));
+		printf("%f\n", (double)TYPIFY(getMatrixEntry)(i + row, j + col, m));
 	}
 	return true;
 }
