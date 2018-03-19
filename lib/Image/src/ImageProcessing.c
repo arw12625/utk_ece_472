@@ -2,82 +2,187 @@
 #include <math.h>
 #include <stdio.h>
 
+bool sumImageChannels(size_t destChannel, Image* dest, size_t summand1Channel,
+	Image* summand1, size_t summand2Channel, Image* summand2) {
+	if(!summand1 || !summand2) {
+		printf("Cannot sum a NULL image\n");
+		return false;
+	}
+	if(!dest) {
+		printf("Cannot sum into a NULL destination image\n");
+		return false;
+	}
+	if(!imageHasSameSize(dest, summand1) || !imageHasSameSize(summand1, summand2)) {
+		printf("Cannot sum images with different dimensions\n");
+		return false;
+	}
+	if(destChannel >= dest->numChannels || summand1Channel >= summand1->numChannels
+		|| summand2Channel >= summand2->numChannels) {
+		printf("Channel index out of range in summing image channels\n");
+		return false;
+	}
+	return sumMatrices_i16(dest->channels[destChannel],
+			summand1->channels[summand1Channel], summand2->channels[summand2Channel]);
+}
+
 bool sumImages(Image* dest, Image* summand1, Image* summand2) {
 	if(!summand1 || !summand2) {
 		printf("Cannot sum a NULL image\n");
 		return false;
 	}
-	return sumMatrices_i16(dest->pixels, summand1->pixels, summand2->pixels);
+	if(!dest) {
+		printf("Cannot sum into a NULL destination image\n");
+		return false;
+	}
+	if(!imageHasSameSize(dest, summand1) || !imageHasSameSize(summand1, summand2)) {
+		printf("Cannot sum images with different dimensions\n");
+		return false;
+	}
+	if(dest->numChannels != summand1->numChannels || summand1->numChannels != summand2->numChannels) {
+		printf("Cannot sum images with a different number of channels\n");
+		return false;
+	}
+	size_t channel;
+	bool success = true;
+	for(channel = 0; channel < dest->numChannels; channel++) {
+		success = success && sumMatrices_i16(dest->channels[channel],
+			summand1->channels[channel], summand2->channels[channel]);
+	}
+	return success;
 }
 
-/*
+
 Image* createImageFromSum(Image* summand1, Image* summand2) {
-	
-	printf("createImageFromSum is not implemented yet");
-	return NULL;
-	
 	if(!summand1 || !summand2) {
 		printf("Cannot sum a NULL image\n");
-		return NULL;
+		return false;
 	}
-	Matrix_u16* resultMatrix = createMatrixFromSum_u16(summand1->pixels, summand2->pixels);
-	if(!resultMatrix) {
-		return NULL;
+	if(!imageHasSameSize(summand1, summand2)) {
+		printf("Cannot sum images with different dimensions\n");
+		return false;
 	}
-	Image* result = allocateEmptyImage();
-	result->pixels = resultMatrix;
-	return result;
+	if(summand1->numChannels != summand2->numChannels) {
+		printf("Cannot sum images with a different number of channels\n");
+		return false;
+	}
+	Image* dest = allocateImage(summand1->rows, summand1->cols, summand1->numChannels);
+	//Channel model of created image defaults to that of the first summand
+	dest->channelModel = summand1->channelModel;
+	sumImages(dest, summand1, summand2);
+	return dest;
 	
-}*/
+}
 
-bool scaleImage(Image* im, float scaler) {
+bool scaleImageChannel(float scaler, size_t channel, Image* im) {
 	if(!im) {
 		printf("Cannot scale NULL image\n");
 		return false;
 	}
-	return scaleMatrix_i16(im->pixels, scaler);
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in scaling image\n");
+		return false;
+	}
+	return scaleMatrix_i16(im->channels[channel], scaler);
 }
 
-//operates on the pixels of the image by the affine interval map from [a1, b1] to [a2, b2]
-bool intervalMapImage(Image* im, im_t a1, im_t b1, im_t a2, im_t b2) {
+//operates on the values of the image channel by the affine interval map from [a1, b1] to [a2, b2]
+bool intervalMapImageChannel(im_t a1, im_t b1, im_t a2, im_t b2, size_t channel, Image* im) {
 	if(!im) {
 		printf("Cannot interval map NULL image\n");
 		return false;
 	}
-	return intervalMapMatrix_i16(im->pixels, a1, b1, a2, b2);
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in interval mapping image channel\n");
+		return false;
+	}
+	return intervalMapMatrix_i16(im->channels[channel], a1, b1, a2, b2);
 }
 
 //interval maps the pixels of the image from the range of the matrix to the desired range
 //eg maps the mininum of m to minVal and the maximum of m to maxVal
-bool scaleRangeImage(Image* im, im_t minVal, im_t maxVal) {
+bool scaleRangeImageChannel(im_t minVal, im_t maxVal, size_t channel, Image* im) {
 	if(!im) {
 		printf("Cannot scale range of NULL image\n");
 		return false;
 	}
-	return scaleRangeMatrix_i16(im->pixels, minVal, maxVal);
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in scaling range of image channel\n");
+		return false;
+	}
+	return scaleRangeMatrix_i16(im->channels[channel], minVal, maxVal);
+}
+
+bool scaleRangeImageIndependent(im_t minVal, im_t maxVal, Image* im) {
+	if(!im) {
+		printf("Cannot scale range of NULL image\n");
+		return false;
+	}
+	size_t i;
+	bool success = true;
+	for(i = 0; i < im->numChannels; i++) {
+		success = success && scaleRangeImageChannel(minVal, maxVal, i, im);
+	}
+	return success;
+}
+
+bool scaleRangeImageUniform(im_t minVal, im_t maxVal, Image* im) {
+	if(!im) {
+		printf("Cannot scale range of NULL image\n");
+		return false;
+	}
+	im_t imageMin = getMinEntryMatrix_i16(im->channels[0]);
+	im_t imageMax = getMaxEntryMatrix_i16(im->channels[0]);
+	size_t i;
+	for(i = 1; i< im->numChannels; i++) {
+		im_t curMax = getMaxEntryMatrix_i16(im->channels[i]);
+		imageMax = curMax > imageMax ? curMax : imageMax;
+		im_t curMin = getMinEntryMatrix_i16(im->channels[i]);
+		imageMin = curMin < imageMin ? curMin : imageMin;
+	}
+	bool success = true;
+	for(i = 0; i < im->numChannels; i++) {
+		success = success && intervalMapImageChannel(imageMin, imageMax, minVal, maxVal, i, im);
+	}
+	return success;
 }
 
 //Image must be in range to apply lookup transform (eg 0 <= val < IMAGE_SCALE)
-bool applyLookupTransform(Image* im, im_t lookup[IMAGE_SCALE]) {
+bool applyChannelLookupTransform(im_t lookup[IMAGE_SCALE], size_t channel, Image* im) {
 	if(!im) {
 		printf("Cannot apply lookup transform to NULL image\n");
 		return false;
 	}
-	
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in lookup transform image\n");
+		return false;
+	}
 	size_t i, j;
 	size_t curVal;
-	for(i = 0; i < im->pixels->rows; i++) {
-		for(j = 0; j < im->pixels->cols; j++) {
-			curVal = (size_t)getMatrixEntry_i16(i, j, im->pixels);
+	for(i = 0; i < im->rows; i++) {
+		for(j = 0; j < im->cols; j++) {
+			curVal = (size_t)getMatrixEntry_i16(i, j, im->channels[channel]);
 			if(curVal < IMAGE_SCALE) {
 				curVal = lookup[curVal];
 			} else {
 				curVal = 0;
 			}
-			setMatrixEntry_i16((im_t)curVal, i, j, im->pixels);
+			setMatrixEntry_i16((im_t)curVal, i, j, im->channels[channel]);
 		}
 	}
 	return true;
+}
+
+bool applyLookupTransform(im_t lookup[IMAGE_SCALE], Image* im) {
+	if(!im) {
+		printf("Cannot apply lookup transform to NULL image\n");
+		return false;
+	}
+	size_t i;
+	bool success = true;
+	for(i = 0; i < im->numChannels; i++) {
+		success = success && applyChannelLookupTransform(lookup, i, im);
+	}
+	return success;
 }
 
 bool invertImagePixels(Image* im) {
@@ -91,7 +196,7 @@ bool invertImagePixels(Image* im) {
 		lookup[i] = IMAGE_SCALE - 1 - i;
 	}
 	
-	return applyLookupTransform(im, lookup);
+	return applyLookupTransform(lookup, im);
 }
 
 bool exponentiateImagePixels(Image* im) {
@@ -109,7 +214,7 @@ bool exponentiateImagePixels(Image* im) {
 		lookup[i] = (im_t)(pow(base, i) - 1);
 	}
 	
-	return applyLookupTransform(im, lookup);
+	return applyLookupTransform(lookup, im);
 }
 
 bool logarithmImagePixels(Image* im) {
@@ -127,7 +232,7 @@ bool logarithmImagePixels(Image* im) {
 		lookup[i] = (im_t)(mult * log(i + 1));
 	}
 	
-	return applyLookupTransform(im, lookup);
+	return applyLookupTransform(lookup, im);
 }
 
 bool powerLawImagePixels(Image* im, double gamma) {
@@ -144,21 +249,25 @@ bool powerLawImagePixels(Image* im, double gamma) {
 		lookup[i] = (im_t)(pow(i, gamma) * c);
 	}
 
-	return applyLookupTransform(im, lookup);
+	return applyLookupTransform(lookup, im);
 }
 
-bool computeImageHistogram(Image* im, double histogram[IMAGE_SCALE]) {
+bool computeImageChannelHistogram(double histogram[IMAGE_SCALE], size_t channel, Image* im) {
 	if(!im) {
 		printf("Cannot compute histogram of NULL image\n");
 		return false;
 	}
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in computing image channel histogram\n");
+		return false;
+	}
 	size_t i;
-	size_t imSize = im->pixels->rows * im->pixels->rows;
+	size_t imSize = im->rows * im->cols;
 	for(i = 0; i < IMAGE_SCALE; i++) {
 		histogram[i] = 0;
 	}
 	for(i = 0; i < imSize; i++) {
-		histogram[im->pixels->mat[i]]++;
+		histogram[im->channels[channel]->mat[i]]++;
 	}
 	for(i = 0; i < IMAGE_SCALE; i++) {
 		histogram[i] /= imSize;
@@ -167,13 +276,13 @@ bool computeImageHistogram(Image* im, double histogram[IMAGE_SCALE]) {
 	return true;
 }
 
-bool computeAndWriteImageHistogram(Image* im, const char* path) {
+bool computeAndWriteImageChannelHistogram(const char* path, size_t channel, Image* im) {
 	if(!im) {
 		printf("Cannot compute and write histogram of NULL image\n");
 		return false;
 	}
 	double histogram[IMAGE_SCALE];
-	computeImageHistogram(im, histogram);
+	computeImageChannelHistogram(histogram, channel, im);
 	
 	FILE *histoFile;
     histoFile = fopen(path,"wb");
@@ -211,27 +320,27 @@ Image* generateHistogramPlot(double histogram[IMAGE_SCALE]) {
 	size_t rows = graphHeight + gapHeight + gradientHeight + baseHeight;
 	size_t cols = graphWidth;
 	
-	Image* im = allocateImage(rows, cols);
+	Image* im = allocateImageWithModel(rows, cols, CHANNEL_MODEL_GRAY);	
 	
 	size_t i,j;
 	for(j = 0; j < graphWidth; j++) {
 		size_t barHeight = (size_t)(graphHeight - IMAGE_SCALE * histogram[j]);
 		for(i = 0; i < barHeight; i++) {
 			//setImagePixel(255 - j, i, j, im);
-			setImagePixel(IMAGE_SCALE - 1, i, j, im);
+			setImageChannelValue(IMAGE_SCALE - 1, i, j, CHANNEL_GRAY, im);
 		}
 		for(; i < graphHeight; i++) {
 			//setImagePixel(j, i, j, im);
-			setImagePixel(0, i, j, im);
+			setImageChannelValue(0, i, j, CHANNEL_GRAY, im);
 		}
 		for(i = 0; i < baseHeight; i++) {
-			setImagePixel(IMAGE_SCALE / 2, i + graphHeight, j, im);
+			setImageChannelValue(IMAGE_SCALE / 2, i + graphHeight, j, CHANNEL_GRAY, im);
 		}
 		for(i = 0; i < gapHeight; i++) {
-			setImagePixel(IMAGE_SCALE - 1, i + graphHeight + baseHeight, j, im);
+			setImageChannelValue(IMAGE_SCALE - 1, i + graphHeight + baseHeight, j, CHANNEL_GRAY, im);
 		}
 		for(i = 0; i < gradientHeight; i++) {
-			setImagePixel(j, i + graphHeight + baseHeight + gapHeight, j, im);
+			setImageChannelValue(j, i + graphHeight + baseHeight + gapHeight, j, CHANNEL_GRAY, im);
 		}
 	}
 	
@@ -239,15 +348,18 @@ Image* generateHistogramPlot(double histogram[IMAGE_SCALE]) {
 	
 }
 
-bool histogramEqualizeImage(Image* source) {
-	
+bool histogramEqualizeImageChannel(size_t channel, Image* source) {
 	if(!source) {
 		printf("Cannot equalize NULL image");
 		return false;
 	}
+	if(channel >= source->numChannels) {
+		printf("Channel index out of range in histogram equalizing image channel\n");
+		return false;
+	}
 	
 	double histogram[IMAGE_SCALE];
-	if(!computeImageHistogram(source, histogram)) {
+	if(!computeImageChannelHistogram(histogram, channel, source)) {
 		return false;
 	}
 	
@@ -264,19 +376,23 @@ bool histogramEqualizeImage(Image* source) {
 		scaledCDF[i] = (IMAGE_SCALE - 1) * cdf[i];
 	}
 	
-	applyLookupTransform(source, scaledCDF);
+	applyChannelLookupTransform(scaledCDF, channel, source);
 	
 	//apply image scaling
-	//scaleRangeImage(source, 0, 255);
+	scaleRangeImageChannel(0, 255, channel, source);
 	
 	return true;
 	
 }
 
-bool applyImageKernel(Image* im, Matrix_d* kernel) {
+bool applyImageChannelKernel(Matrix_d* kernel, size_t channel, Image* im) {
 	
 	if(!im) {
 		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in applying image kernel\n");
 		return false;
 	}
 	if(!kernel) {
@@ -288,41 +404,45 @@ bool applyImageKernel(Image* im, Matrix_d* kernel) {
 		return false;
 	}
 	
-	Image* tempIm = allocateImage(im->pixels->rows, im->pixels->rows);
+	Image* tempIm = allocateImageWithModel(im->rows, im->rows, im->channelModel);
 	
 	size_t i, j, k, l;
 	size_t kernelDRow = kernel->rows / 2, kernelDCol = kernel->cols / 2;
 	
 	double val;
-	for(i = 0; i < im->pixels->rows; i++) {
-		for(j = 0; j < im->pixels->cols; j++) {
+	for(i = 0; i < im->rows; i++) {
+		for(j = 0; j < im->cols; j++) {
 			val = 0;
 			for(k = 0; k < kernel->rows; k++) {
 				for(l = 0; l < kernel->cols; l++) {
-					if(i + k >= kernelDRow && i + k < im->pixels->rows + kernelDRow
-						&& j + l >= kernelDCol && j + l < im->pixels->cols + kernelDCol) {
-							im_t pixVal = getImagePixel(i + k - kernelDRow, j + l - kernelDCol, im);
+					if(i + k >= kernelDRow && i + k < im->rows + kernelDRow
+						&& j + l >= kernelDCol && j + l < im->cols + kernelDCol) {
+							im_t pixVal = getImageChannelValue(i + k - kernelDRow, j + l - kernelDCol, channel, im);
 							val += (getMatrixEntry_d(k, l, kernel)* pixVal);
 					}
 				}
 			}
-			setImagePixel((im_t)val, i, j, tempIm);
+			setImageChannelValue((im_t)val, i, j, channel, tempIm);
 		}
 	}
 	
-	copyImagePixels(im, tempIm);
+	copyImageData(im, tempIm);
 	
-	scaleRangeImage(im, 0, IMAGE_SCALE - 1);
+	scaleRangeImageChannel(0, IMAGE_SCALE - 1, channel, im);
 	
 	freeImage(tempIm);
 	return true;
 	
 }
 
-bool applyImageKernelFromFile(Image* im, const char* kernelPath) {
+bool applyImageChannelKernelFromFile(const char* kernelPath, size_t channel, Image* im) {
 	
 	if(!im) {
 		printf("Cannot apply kernel transform from file to NULL image\n");
+		return false;
+	}
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in applying image kernel\n");
 		return false;
 	}
 	Matrix_d* kernel = readMatrix_d(kernelPath);
@@ -330,7 +450,8 @@ bool applyImageKernelFromFile(Image* im, const char* kernelPath) {
 		printf("Could not open file to read kernel\n");
 		return false;
 	}
-	bool success = applyImageKernel(im, kernel);
+	
+	bool success = applyImageChannelKernel(kernel, channel, im);
 	freeMatrix_d(kernel);
 	
 	if(!success) {
@@ -352,10 +473,14 @@ int pixelComp(const void *a,const void *b) {
 	return 0;
 }
 
-bool applyImageMedianFilter(Image* im, size_t filterRows, size_t filterCols) {
+bool applyImageChannelMedianFilter(size_t filterRows, size_t filterCols, size_t channel, Image* im) {
 	
 	if(!im) {
 		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	if(channel >= im->numChannels) {
+		printf("Channel index out of range in applying median filter\n");
 		return false;
 	}
 	if(filterRows % 2 != 1 || filterCols % 2 != 1) {
@@ -363,16 +488,16 @@ bool applyImageMedianFilter(Image* im, size_t filterRows, size_t filterCols) {
 		return false;
 	}
 	
-	Image* tempIm = allocateImage(im->pixels->rows, im->pixels->rows);
+	Image* tempIm = allocateImageWithModel(im->rows, im->rows, im->channelModel);
 	size_t halfFilterRows = filterRows / 2, halfFilterCols = filterCols / 2;
 	
 	size_t i, j;
 	
-	for(i = 0; i < im->pixels->rows; i++) {
-		for(j = 0; j < im->pixels->cols; j++) {
+	for(i = 0; i < im->rows; i++) {
+		for(j = 0; j < im->cols; j++) {
 			//obtain the neighborhood of the pixel padding with zero if necessary
 			Matrix_i16* nbhd = createSubmatrixPadZero_i16(filterRows, filterCols,
-				i - halfFilterRows, j - halfFilterCols, im->pixels);
+				i - halfFilterRows, j - halfFilterCols, im->channels[channel]);
 			im_t* data = nbhd->mat;
 			//sort the pixels of the neighborhood in place
 			qsort(data, filterRows * filterCols, sizeof(im_t), pixelComp);
@@ -380,43 +505,77 @@ bool applyImageMedianFilter(Image* im, size_t filterRows, size_t filterCols) {
 			//Note there are less computationally complex methods for finding the median
 			im_t medianVal = (im_t)data[filterRows * filterCols / 2 + 1];
 			freeMatrix_i16(nbhd);
-			setImagePixel(medianVal, i, j, tempIm);
+			setImageChannelValue(medianVal, i, j, channel, tempIm);
 		}
 	}
 	
-	copyImagePixels(im, tempIm);
+	copyImageData(im, tempIm);
 	freeImage(tempIm);
 	return true;
+}
+
+bool applyImageKernelIndependent(Matrix_d* kernel, size_t channel, Image* im) {
+	if(!im) {
+		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	if(!kernel) {
+		printf("Cannot apply NULL kernel transform to image\n");
+		return false;
+	}
+	size_t i;
+	bool success = true;
+	for(i = 0; i < im->numChannels; i++) {
+		success = success && applyImageChannelKernel(kernel, i, im);
+	}
+	return success;
+}
+
+bool applyImageKernelFromFileIndependent(const char* kernelPath, size_t channel, Image* im) {
+	if(!im) {
+		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	size_t i;
+	bool success = true;
+	for(i = 0; i < im->numChannels; i++) {
+		success = success && applyImageChannelKernelFromFile(kernelPath, i, im);
+	}
+	return success;
 }
 
 
 Image* computeGradientImage(Image* im) {
 	
-	Image* gradIm = allocateImage(im->pixels->rows, im->pixels->cols);
+	Image* gradIm = allocateImageWithModel(im->rows, im->cols, im->channelModel);
 	
-	size_t i, j;
+	size_t i, j, channel;
 	double val;
-	for(i = 1; i < im->pixels->rows - 1; i++) {
-		for(j = 1; j < im->pixels->cols - 1; j++) {
-			val = 0.25 * sqrt(
-				(getImagePixel(i + 1,j, im) - getImagePixel(i - 1,j, im)) * (getImagePixel(i + 1,j, im) - getImagePixel(i - 1,j, im))
-				+ (getImagePixel(i,j + 1, im) - getImagePixel(i,j - 1, im)) * (getImagePixel(i,j + 1, im) - getImagePixel(i,j - 1, im)));
-			setImagePixel((im_t)val, i, j, gradIm);
+	for(channel = 0; channel < im->numChannels; channel++) {
+		for(i = 1; i < im->rows - 1; i++) {
+			for(j = 1; j < im->cols - 1; j++) {
+				val = 0.25 * sqrt(
+					(getImageChannelValue(i + 1,j, channel, im) - getImageChannelValue(i - 1,j, channel, im)) * (getImageChannelValue(i + 1,j, channel, im) - getImageChannelValue(i - 1,j, channel, im))
+					+ (getImageChannelValue(i,j + 1, channel, im) - getImageChannelValue(i,j - 1, channel, im)) * (getImageChannelValue(i,j + 1, channel, im) - getImageChannelValue(i,j - 1, channel, im)));
+				setImageChannelValue((im_t)val, i, j, channel, gradIm);
+			}
 		}
 	}
 	return gradIm;
 }
 
 Image* computeGradientImageApprox(Image* im) {
-	Image* gradIm = allocateImage(im->pixels->rows, im->pixels->cols);
+	Image* gradIm = allocateImageWithModel(im->rows, im->cols, im->channelModel);
 	
-	size_t i, j;
+	size_t i, j, channel;
 	double val;
-	for(i = 1; i < im->pixels->rows - 1; i++) {
-		for(j = 1; j < im->pixels->cols - 1; j++) {
-			val = 0.5 * (fabs(getImagePixel(i + 1,j, im) - getImagePixel(i - 1,j, im))
-				+ fabs(getImagePixel(i,j + 1, im) - getImagePixel(i,j - 1, im)));
-			setImagePixel((im_t)val, i, j, gradIm);
+	for(channel = 0; channel < im->numChannels; channel++) {
+		for(i = 1; i < im->rows - 1; i++) {
+			for(j = 1; j < im->cols - 1; j++) {
+				val = 0.5 * (fabs(getImageChannelValue(i + 1,j, channel, im) - getImageChannelValue(i - 1,j, channel, im))
+					+ fabs(getImageChannelValue(i,j + 1, channel, im) - getImageChannelValue(i,j - 1,channel, im)));
+				setImageChannelValue((im_t)val, i, j, channel, gradIm);
+			}
 		}
 	}
 	return gradIm;

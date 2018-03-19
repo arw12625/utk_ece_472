@@ -32,9 +32,10 @@ $(BIN)$(LIB_NAME).a : $(OBJECTS)
 
 $(NO_HEADERS_H) :
 	
-$(BIN)%.o : $(SOURCE)%.c $(INC)%.h
+$(OBJECTS) : $(BIN)%.o : $(SOURCE)%.c $(INC)%.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-	
+$(OBJECTS) : $(SOURCE)Image.c $(INC)Image.h
+
 clean:
 	cd $(BIN) && del *.o && del *.a
