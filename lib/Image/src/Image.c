@@ -195,27 +195,15 @@ Image* duplicateImage(Image* source) {
 }
 
 bool setImageChannelValue(im_t val, size_t row, size_t col, size_t channel, Image* im) {
-	if(!im) {
-		printf("Cannot set channel value of NULL image\n");
-		return false;
-	}
 	return setMatrixEntry_i16(val, row, col, im->channels[channel]);
 }
 
 im_t getImageChannelValue(size_t row, size_t col, size_t channel, Image* im) {
-	if(!im) {
-		printf("Cannot get channel value from NULL image\n");
-		return 0;
-	}
 	return getMatrixEntry_i16(row, col, im->channels[channel]);
 }
 
 //indexImageChannel returns the pointer to the channel value at the specified row and column
-im_t* indexImageChannel(size_t row, size_t col, size_t channel, Image* im) {
-	if(!im) {
-		printf("Cannot index NULL image\n");
-		return NULL;
-	}
+inline im_t* indexImageChannel(size_t row, size_t col, size_t channel, Image* im) {
 	return indexMatrix_i16(row, col, im->channels[channel]);
 }
 

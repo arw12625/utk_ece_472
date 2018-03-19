@@ -185,7 +185,7 @@ bool applyLookupTransform(im_t lookup[IMAGE_SCALE], Image* im) {
 	return success;
 }
 
-bool invertImagePixels(Image* im) {
+bool invertImage(Image* im) {
 	if(!im) {
 		printf("Cannot invert NULL image\n");
 		return false;

@@ -13,7 +13,7 @@ CPPFLAGS = -I$(SOURCE) $(addprefix -I, $(LIB_INC))
 OBJECTS := $(patsubst $(SOURCE)%.c, $(BIN)%.o, $(wildcard $(SOURCE)*.c))
 
 
-PROG = proj2 writeKernels testFilter gradient
+PROG = proj2 writeKernels testFilter gradient performance
 
 .PHONY : ALL $(LIBRARIES)
 

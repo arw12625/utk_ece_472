@@ -239,7 +239,7 @@ mat_t TYPIFY(getMatrixEntry)(size_t row, size_t col, Matrix* m) {
 	return *TYPIFY(indexMatrix)(row, col, m);
 }
 
-mat_t* TYPIFY(indexMatrix)(size_t row, size_t col, Matrix* m) {
+inline mat_t* TYPIFY(indexMatrix)(size_t row, size_t col, Matrix* m) {
 	if(!m) {
 		printf("Cannot index NULL matrix\n");
 		return NULL;
