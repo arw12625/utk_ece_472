@@ -17,7 +17,7 @@ int main()  {
 		return 1;
 	}
 	
-	size_t numIter = 100;
+	size_t numIter = 2;
 	size_t i;
 	
 	clock_t startTime, endTime;

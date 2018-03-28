@@ -26,6 +26,7 @@ int main()  {
 	for(i = 0; i < numIter; i++) {
 		Image* dup = duplicateImage(baseImage);
 		invertImage(dup);
+		writeBMPImageChannel8Bit("images/result/test.bmp", CHANNEL_GRAY, dup);
 		freeImage(dup);
 	}
 	 endTime = clock();

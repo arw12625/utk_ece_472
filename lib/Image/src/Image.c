@@ -203,7 +203,7 @@ im_t getImageChannelValue(size_t row, size_t col, size_t channel, Image* im) {
 }
 
 //indexImageChannel returns the pointer to the channel value at the specified row and column
-inline im_t* indexImageChannel(size_t row, size_t col, size_t channel, Image* im) {
+im_t* indexImageChannel(size_t row, size_t col, size_t channel, Image* im) {
 	return indexMatrix_i16(row, col, im->channels[channel]);
 }
 

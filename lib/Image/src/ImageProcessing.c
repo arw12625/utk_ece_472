@@ -156,17 +156,14 @@ bool applyChannelLookupTransform(im_t lookup[IMAGE_SCALE], size_t channel, Image
 		printf("Channel index out of range in lookup transform image\n");
 		return false;
 	}
-	size_t i, j;
-	size_t curVal;
-	for(i = 0; i < im->rows; i++) {
-		for(j = 0; j < im->cols; j++) {
-			curVal = (size_t)getMatrixEntry_i16(i, j, im->channels[channel]);
-			if(curVal < IMAGE_SCALE) {
-				curVal = lookup[curVal];
-			} else {
-				curVal = 0;
-			}
-			setMatrixEntry_i16((im_t)curVal, i, j, im->channels[channel]);
+	size_t i;
+	im_t curVal;
+	im_t* data = im->channels[channel]->mat;
+	for(i = 0; i < im->rows * im->cols; i++) {
+		if(0 <= data[i] && data[i] < IMAGE_SCALE) {
+			data[i] = lookup[data[i]];
+		} else {
+			data[i] = 0;
 		}
 	}
 	return true;
@@ -266,8 +263,9 @@ bool computeImageChannelHistogram(double histogram[IMAGE_SCALE], size_t channel,
 	for(i = 0; i < IMAGE_SCALE; i++) {
 		histogram[i] = 0;
 	}
+	im_t* data = im->channels[channel]->mat;
 	for(i = 0; i < imSize; i++) {
-		histogram[im->channels[channel]->mat[i]]++;
+		histogram[data[i]]++;
 	}
 	for(i = 0; i < IMAGE_SCALE; i++) {
 		histogram[i] /= imSize;

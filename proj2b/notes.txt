@@ -1,0 +1,30 @@
+Proj2b currently does not use the previously developed image and matrix library. This is in part due to performance and development issues. Now images are "packed" with the channel values of a pixel stored adjacent instead of each channel separate. The syntax for the new image processing functions closely matches the old syntax.
+
+Proj2b also incorporates the ffmpeg/libav library to manage video sources and the nuklear library to create a gui.
+https://github.com/libav/libav
+https://github.com/vurtun/nuklear
+
+Note that I am using Mingw-64 to build the project and libraries/dependencies.
+
+To use ffmpeg on windows, I am using the binaries provided at
+https://ffmpeg.zeranoe.com/builds/
+The shared and dev linking versions are used. Link against the static libraries in dev and include the dll's from the shared in the executable directory.
+
+The base functionality of nuklear is through the single header nuklear.h. I am using glfw as a backend for nuklear with the nuklear_glfw_gl3.h header. I am building glfw from the github repository.
+https://github.com/glfw/glfw
+This requires CMake. I am using the following commands to setup:
+
+mkdir build
+cd build
+cmake -G "MinGW Makefiles" -DBUILD_SHARED_LIBS=ON ..
+make
+
+Then the library files are in the build/scr directory.
+
+The nuklear glfw backend also depends on glew. I am using the provided Windows binaries provided at
+http://glew.sourceforge.net/
+
+
+TODO
+Replace old image and matrix library with new implementation.
+Explore further abstracting ffmpeg io functions and nuklear gui functions to produce cleaner project code.
