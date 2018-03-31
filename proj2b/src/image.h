@@ -7,7 +7,7 @@
 #define IMAGE_SCALE 256
 
 typedef enum ImageChannelModel {
-	CHANNEL_MODEL_NONE, CHANNEL_MODEL_GRAY, CHANNEL_MODEL_RGB, CHANNEL_MODEL_RGBA
+	CHANNEL_MODEL_NONE, CHANNEL_MODEL_GRAY, CHANNEL_MODEL_RGB, CHANNEL_MODEL_RGBA, CHANNEL_MODEL_HSI
 } ImageChannelModel;
 
 #define CHANNEL_GRAY 0
@@ -15,6 +15,9 @@ typedef enum ImageChannelModel {
 #define CHANNEL_GREEN 1
 #define CHANNEL_BLUE 2
 #define CHANNEL_ALPHA 3
+#define CHANNEL_HUE 0
+#define CHANNEL_SATURATION 1
+#define CHANNEL_INTENSITY 2
 
 typedef int16_t im_t;
 
@@ -36,6 +39,7 @@ Image* createImageFromEntries(size_t rows, size_t cols, size_t numChannels, im_t
 Image* createImageFromBytes(size_t rows, size_t cols, size_t numChannels, uint8_t* data);
 int getBytesFromImage(uint8_t* data, Image* im);
 
+int copyImageChannelData(size_t destChannel, Image* dest, size_t sourceChannel, Image* source);
 int copyImageData(Image* dest, Image* source);
 Image* duplicateImage(Image* source);
 

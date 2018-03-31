@@ -47,7 +47,51 @@ im_t getImageMinChannelValue(size_t channel, Image* im) {
 	return minVal;
 }
 
-im_t getImageMinChannelValue(size_t channel, Image* image);
+int setImageChannelBorder(im_t val, size_t borderRows, size_t borderCols, size_t channel, Image* im) {
+	
+	if(!im) {
+		printf("Cannot set border of NULL image\n");
+		return -1;
+	}
+	
+	size_t i;
+	
+	for(i = 0; i < im->rows; i++) {
+		setImageValue(0, i, 0, channel, im);
+		setImageValue(0, i, im->cols - 1, channel, im);
+	}
+	for(i = 0; i < im->cols; i++) {
+		setImageValue(0, 0, i, channel, im);
+		setImageValue(0, im->rows - 1, i, channel, im);
+	}
+	
+	return 0;
+}
+
+int setImageBorder(im_t val, size_t borderRows, size_t borderCols, Image* im) {
+	
+	if(!im) {
+		printf("Cannot set border of NULL image\n");
+		return -1;
+	}
+	
+	size_t i, channel;
+	
+	for(i = 0; i < im->rows; i++) {
+		for(channel = 0; channel < im->numChannels; channel++) {
+			setImageValue(0, i, 0, channel, im);
+			setImageValue(0, i, im->cols - 1, channel, im);
+		}
+	}
+	for(i = 0; i < im->cols; i++) {
+		for(channel = 0; channel < im->numChannels; channel++) {		
+			setImageValue(0, 0, i, channel, im);
+			setImageValue(0, im->rows - 1, i, channel, im);
+		}
+	}
+	
+	return 0;
+}
 
 int sumImages(Image* dest, Image* summand1, Image* summand2) {
 	if(!summand1 || !summand2) {
@@ -100,11 +144,10 @@ int scaleImage(float scaler, Image* im) {
 		printf("Cannot scale NULL image\n");
 		return -1;
 	}
-	Image* dest = allocateImage(im->rows, im->cols, im->numChannels);
 	size_t i;
-	size_t numEntries = dest->rows * dest->cols * dest->numChannels;
+	size_t numEntries = im->rows * im->cols * im->numChannels;
 	for(i = 0; i < numEntries; i++) {
-		dest->data[i] = (im_t)(im->data[i] * scaler);
+		im->data[i] = (im_t)(im->data[i] * scaler);
 	}
 	return 0;
 }
@@ -118,11 +161,10 @@ int scaleImageChannel(float scaler, size_t channel, Image* im) {
 		printf("Channel index out of range in scaling image\n");
 		return -1;
 	}
-	Image* dest = allocateImage(im->rows, im->cols, im->numChannels);
 	size_t i;
-	size_t numEntries = dest->rows * dest->cols * dest->numChannels;
+	size_t numEntries = im->rows * im->cols * im->numChannels;
 	for(i = 0; i < numEntries; i+= im->numChannels) {
-		dest->data[i + channel] = (im_t)(im->data[i + channel] * scaler);
+		im->data[i + channel] = (im_t)(im->data[i + channel] * scaler);
 	}
 	return 0;
 }
@@ -436,11 +478,28 @@ int applyImageChannelKernel(size_t kernelRows, size_t kernelCols,
 		return false;
 	}
 	
-	Image* tempIm = duplicateImage(im);
+	Image* tempIm = allocateImage(im->rows, im->cols, 1);
 	
 	size_t i, j, k, l;
 	size_t kernelDRow = kernelRows / 2, kernelDCol = kernelCols / 2;
 	
+	setImageBorder(0, kernelDRow, kernelDCol, tempIm);
+	
+	float val;
+	for(i = kernelDRow; i < im->rows - kernelDRow; i++) {
+		for(j = kernelDCol; j < im->cols - kernelDCol; j++) {
+			val = 0;
+			for(k = 0; k < kernelRows; k++) {
+				for(l = 0; l < kernelCols; l++) {
+					im_t pixVal = getImageValue(i + k - kernelDRow, j + l - kernelDCol, channel, im);
+					val += kernel[k][l] * pixVal;
+				}
+			}
+			setImageValue((im_t)val, i, j, 0, tempIm);
+		}
+	}
+	
+	/*
 	float val;
 	for(i = 0; i < im->rows; i++) {
 		for(j = 0; j < im->cols; j++) {
@@ -455,6 +514,56 @@ int applyImageChannelKernel(size_t kernelRows, size_t kernelCols,
 				}
 			}
 			setImageValue((im_t)val, i, j, channel, tempIm);
+		}
+	}*/
+	
+	copyImageChannelData(channel, im, 0, tempIm);
+	
+	//scaleRangeImageChannel(0, IMAGE_SCALE - 1, channel, im);
+	
+	freeImage(tempIm);
+	
+	return 0;
+	
+}
+
+int applyImageKernel(size_t kernelRows, size_t kernelCols,
+		float kernel[kernelRows][kernelCols], Image* im) {
+	
+	if(!im) {
+		printf("Cannot apply kernel transform to NULL image\n");
+		return false;
+	}
+	if(!kernel) {
+		printf("Cannot apply NULL kernel transform to image\n");
+		return false;
+	}
+	if(kernelRows % 2 != 1 || kernelCols % 2 != 1) {
+		printf("Can only apply odd-dimensioned (symmetric) kernels\n");
+		return false;
+	}
+	
+	Image* tempIm = allocateImage(im->rows, im->cols, im->numChannels);
+	tempIm->channelModel = im->channelModel;
+	
+	size_t i, j, k, l, channel;
+	size_t kernelDRow = kernelRows / 2, kernelDCol = kernelCols / 2;
+	
+	setImageBorder(0, kernelDRow, kernelDCol, tempIm);
+	
+	float val;
+	for(i = kernelDRow; i < im->rows - kernelDRow; i++) {
+		for(j = kernelDCol; j < im->cols - kernelDCol; j++) {
+			for(channel = 0; channel < im->numChannels; channel++) {
+				val = 0;
+				for(k = 0; k < kernelRows; k++) {
+					for(l = 0; l < kernelCols; l++) {
+						im_t pixVal = getImageValue(i + k - kernelDRow, j + l - kernelDCol, channel, im);
+						val += kernel[k][l] * pixVal;
+					}
+				}
+				setImageValue((im_t)val, i, j, channel, tempIm);
+			}
 		}
 	}
 	
@@ -501,18 +610,7 @@ Image* computeGradientImage(Image* im) {
 		}
 	}
 	
-	for(i = 0; i < im->rows; i++) {
-		for(channel = 1; channel < im->numChannels; channel++) {
-			setImageValue(0, i, 0, channel, gradIm);
-			setImageValue(0, i, im->cols - 1, channel, gradIm);
-		}
-	}
-	for(i = 0; i < im->cols; i++) {
-		for(channel = 1; channel < im->numChannels; channel++) {		
-			setImageValue(0, 0, i, channel, gradIm);
-			setImageValue(0, im->rows - 1, i, channel, gradIm);
-		}
-	}
+	setImageBorder(0, 1, 1, gradIm);
 
 	return gradIm;
 }
@@ -551,18 +649,7 @@ Image* computeGradientImageApprox(Image* im) {
 		}
 	}
 	
-	for(i = 0; i < im->rows; i++) {
-		for(channel = 1; channel < im->numChannels; channel++) {
-			setImageValue(0, i, 0, channel, gradIm);
-			setImageValue(0, i, im->cols - 1, channel, gradIm);
-		}
-	}
-	for(i = 0; i < im->cols; i++) {
-		for(channel = 1; channel < im->numChannels; channel++) {		
-			setImageValue(0, 0, i, channel, gradIm);
-			setImageValue(0, im->rows - 1, i, channel, gradIm);
-		}
-	}
+	setImageBorder(0, 1, 1, gradIm);
 
 	return gradIm;
 }
@@ -580,4 +667,292 @@ int imageAbsoluteValue(Image* im) {
 	}
 	
 	return 0;
+}
+
+
+int truncateImageRange(im_t minVal, im_t maxVal, Image* im) {
+	
+	if(!im) {
+		printf("Cannot truncate NULL image\n");
+		return -1;
+	}
+	if(minVal > maxVal) {
+		printf("Cannot truncate image. Minimum value greater than maximum value\n");
+	}
+	
+	size_t i;
+	for(i = 0; i < im->numChannels * im->rows * im->cols; i++) {
+		im_t *val = &im->data[i];
+		if(*val > maxVal) {
+			*val = maxVal;
+		}
+		if(*val < minVal) {
+			*val = minVal;
+		}
+	}
+	return 0;
+	
+}
+
+float PI = 3.14159;
+
+int convertScalerRGB_HSI(float* destHSI, float* sourceRGB) {
+	float r,g,b;
+	float h, s, i, w, t;
+	
+	r = sourceRGB[CHANNEL_RED];
+	g = sourceRGB[CHANNEL_GREEN];
+	b = sourceRGB[CHANNEL_BLUE];
+	
+	t = r + g + b;
+	i = t / 3.0;
+	
+	if(r == g && g == b) {
+		s = 0;
+		h = 0;
+	} else {
+		w = 0.5 * (r - g + r - b) / sqrt((r - g) * (r - g) + (r - b) * (g - b));
+		if(w > 1) { w = 1;}
+		if(w < -1) { w = -1;}
+		h = acos(w);
+		if(b > g) { h = 2 * PI - h;}
+		if(r <= g && r <= b) { s = 1 - r / i;}
+		if(g <= r && g <= b) { s = 1 - g / i;}
+		if(b <= r && b <= g) { s = 1 - b / i;}
+	}
+	
+	destHSI[CHANNEL_HUE] = h / 2 / PI;
+	destHSI[CHANNEL_SATURATION] = s;
+	destHSI[CHANNEL_INTENSITY] = i;
+	
+	return 0;
+}
+
+int convertScalerHSI_RGB(float* destRGB, float* sourceHSI) {
+	
+	float h,s,i;
+	float r, g, b;
+	
+	h = sourceHSI[CHANNEL_HUE] * 2 * PI;
+	s = sourceHSI[CHANNEL_SATURATION];
+	i = sourceHSI[CHANNEL_INTENSITY];
+	
+	if(s > 1) {s = 1;}
+	if(i > 1) {i = 1;}
+	if(s == 0) {
+		r = g = b = i;
+	} else {
+		if (h >= 0 && h < 2 * PI / 3) {
+			b = (1 - s) / 3;
+			r = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+			g = 1 - r - b;
+		} else if(h >= 2 * PI / 3 && h < 4 * PI / 3) {
+			h = h - 2 * PI / 3;
+		r = (1 - s) / 3;
+		g = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+			b = 1 - r - g;
+		} else if(h >= 4 * PI / 3 && h < 2 * PI) {
+			h = h - 4 * PI / 3;
+			g = (1 - s) / 3;
+			b = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+			r = 1 - b - g;
+		}
+		
+		if(r < 0) {r = 0;}
+		if(g < 0) {g = 0;}
+		if(b < 0) {b = 0;}
+		r *= i * 3; g *= i * 3; b *= i * 3;
+		if(r > 1) {r = 1;}
+		if(g > 1) {g = 1;}
+		if(b > 1) {b = 1;}
+		
+	}
+		
+	destRGB[CHANNEL_RED] = r;
+	destRGB[CHANNEL_GREEN] = g;
+	destRGB[CHANNEL_BLUE] = b;
+}
+
+int convertPixelRGB_HSI(im_t* destHSI, im_t* sourceRGB) {
+	
+	float r,g,b;
+	float h, s, i, w, t;
+	
+	r = ((float)sourceRGB[CHANNEL_RED]) / (IMAGE_SCALE - 1);
+	g = ((float)sourceRGB[CHANNEL_GREEN]) / (IMAGE_SCALE - 1);
+	b = ((float)sourceRGB[CHANNEL_BLUE]) / (IMAGE_SCALE - 1);
+	
+	t = r + g + b;
+	i = t / 3.0;
+	
+	if(r == g && g == b) {
+		s = 0;
+		h = 0;
+	} else {
+		w = 0.5 * (r - g + r - b) / sqrt((r - g) * (r - g) + (r - b) * (g - b));
+		if(w > 1) { w = 1;}
+		if(w < -1) { w = -1;}
+		h = acos(w);
+		if(b > g) { h = 2 * PI - h;}
+		if(r <= g && r <= b) { s = 1 - r / i;}
+		if(g <= r && g <= b) { s = 1 - g / i;}
+		if(b <= r && b <= g) { s = 1 - b / i;}
+	}
+	
+	destHSI[CHANNEL_HUE] = (im_t)(h / 2 / PI * (IMAGE_SCALE - 1));
+	destHSI[CHANNEL_SATURATION] = (im_t)(s * (IMAGE_SCALE - 1));
+	destHSI[CHANNEL_INTENSITY] = (im_t)(i * (IMAGE_SCALE - 1));
+	
+	return 0;
+}
+
+int convertPixelHSI_RGB(im_t* destRGB, im_t* sourceHSI) {
+	
+	float h,s,i;
+	float r, g, b;
+	
+	h = ((float)sourceHSI[CHANNEL_HUE]) / (IMAGE_SCALE - 1) * 2 * PI;
+	s = ((float)sourceHSI[CHANNEL_SATURATION]) / (IMAGE_SCALE - 1);
+	i = ((float)sourceHSI[CHANNEL_INTENSITY]) / (IMAGE_SCALE - 1);
+	
+	if(s > 1) {s = 1;}
+	if(i > 1) {i = 1;}
+	if(s == 0) {
+		r = g = b = i;
+	} else {
+		if (h >= 0 && h < 2 * PI / 3) {
+			b = (1 - s) / 3;
+			r = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+			g = 1 - r - b;
+		} else if(h >= 2 * PI / 3 && h < 4 * PI / 3) {
+			h = h - 2 * PI / 3;
+		r = (1 - s) / 3;
+		g = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+			b = 1 - r - g;
+		} else if(h >= 4 * PI / 3 && h < 2 * PI) {
+			h = h - 4 * PI / 3;
+			g = (1 - s) / 3;
+			b = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+			r = 1 - b - g;
+		}
+		
+		if(r < 0) {r = 0;}
+		if(g < 0) {g = 0;}
+		if(b < 0) {b = 0;}
+		r *= i * 3; g *= i * 3; b *= i * 3;
+		if(r > 1) {r = 1;}
+		if(g > 1) {g = 1;}
+		if(b > 1) {b = 1;}
+		
+	}
+		
+	destRGB[CHANNEL_RED] = (im_t)(r * (IMAGE_SCALE - 1));
+	destRGB[CHANNEL_GREEN] = (im_t)(g * (IMAGE_SCALE - 1));
+	destRGB[CHANNEL_BLUE] = (im_t)(b * (IMAGE_SCALE - 1));
+}
+
+
+Image* convertImageRGB_HSI(Image* im) {
+	if(!im) {
+		printf("Cannot convert NULL image\n");
+		return NULL;
+	}
+	if(im->channelModel != CHANNEL_MODEL_RGB) {
+		printf("Cannot convert image from RGB to HSI. Image channel model is not RGB\n");
+		return NULL;
+	}
+	
+	Image* hsiImage = allocateImageWithModel(im->rows, im->cols, CHANNEL_MODEL_HSI);
+	
+	size_t index;
+	float r,g,b;
+	float h, s, i, w, t;
+	for(index = 0; index < im->rows * im->cols * 3; index += im->numChannels) {
+		
+		r = ((float)im->data[index + CHANNEL_RED]) / (IMAGE_SCALE - 1);
+		g = ((float)im->data[index + CHANNEL_GREEN]) / (IMAGE_SCALE - 1);
+		b = ((float)im->data[index + CHANNEL_BLUE]) / (IMAGE_SCALE - 1);
+		
+		t = r + g + b;
+		i = t / 3.0;
+		
+		if(r == g && g == b) {
+			s = 0;
+			h = 0;
+		} else {
+			w = 0.5 * (r - g + r - b) / sqrt((r - g) * (r - g) + (r - b) * (g - b));
+			if(w > 1) { w = 1;}
+			if(w < -1) { w = -1;}
+			h = acos(w);
+			if(b > g) { h = 2 * PI - h;}
+			if(r <= g && r <= b) { s = 1 - r / i;}
+			if(g <= r && g <= b) { s = 1 - g / i;}
+			if(b <= r && b <= g) { s = 1 - b / i;}
+		}
+		
+		hsiImage->data[index + CHANNEL_HUE] = (im_t)(h / 2 / PI * (IMAGE_SCALE - 1));
+		hsiImage->data[index + CHANNEL_SATURATION] = (im_t)(s * (IMAGE_SCALE - 1));
+		hsiImage->data[index + CHANNEL_INTENSITY] = (im_t)(i * (IMAGE_SCALE - 1));
+	}
+	return hsiImage;
+}
+
+
+Image* convertImageHSI_RGB(Image* im) {
+	if(!im) {
+		printf("Cannot convert NULL image\n");
+		return NULL;
+	}
+	if(im->channelModel != CHANNEL_MODEL_HSI) {
+		printf("Cannot convert image from HSI to RGB. Image channel model is not HSI\n");
+		return NULL;
+	}
+	
+	Image* rgbImage = allocateImageWithModel(im->rows, im->cols, CHANNEL_MODEL_RGB);
+	
+	size_t index;
+	float h,s,i;
+	float r, g, b;
+	for(index = 0; index < im->rows * im->cols * 3; index += im->numChannels) {
+		h = ((float)im->data[index + CHANNEL_HUE]) / (IMAGE_SCALE - 1) * 2 * PI;
+		s = ((float)im->data[index + CHANNEL_SATURATION]) / (IMAGE_SCALE - 1);
+		i = ((float)im->data[index + CHANNEL_INTENSITY]) / (IMAGE_SCALE - 1);
+		
+		if(s > 1) {s = 1;}
+		if(i > 1) {i = 1;}
+		if(s == 0) {
+			r = g = b = i;
+		} else {
+			if (h >= 0 && h < 2 * PI / 3) {
+				b = (1 - s) / 3;
+				r = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+				g = 1 - r - b;
+			} else if(h >= 2 * PI / 3 && h < 4 * PI / 3) {
+				h = h - 2 * PI / 3;
+				r = (1 - s) / 3;
+				g = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+				b = 1 - r - g;
+			} else if(h >= 4 * PI / 3 && h < 2 * PI) {
+				h = h - 4 * PI / 3;
+				g = (1 - s) / 3;
+				b = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
+				r = 1 - b - g;
+			}
+			
+			if(r < 0) {r = 0;}
+			if(g < 0) {g = 0;}
+			if(b < 0) {b = 0;}
+			r *= i * 3; g *= i * 3; b *= i * 3;
+			if(r > 1) {r = 1;}
+			if(g > 1) {g = 1;}
+			if(b > 1) {b = 1;}
+			
+		}
+		
+		rgbImage->data[index + CHANNEL_RED] = (im_t)(r * (IMAGE_SCALE - 1));
+		rgbImage->data[index + CHANNEL_GREEN] = (im_t)(g * (IMAGE_SCALE - 1));
+		rgbImage->data[index + CHANNEL_BLUE] = (im_t)(b * (IMAGE_SCALE - 1));
+		
+	}
+	return rgbImage;
 }

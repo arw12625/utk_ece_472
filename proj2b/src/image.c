@@ -40,6 +40,8 @@ Image* allocateImageWithModel(size_t rows, size_t cols, ImageChannelModel model)
 			numChannels = 3; break;
 		case CHANNEL_MODEL_RGBA :
 			numChannels = 4; break;
+		case CHANNEL_MODEL_HSI :
+			numChannels = 3; break;
 	}
 	Image* im = allocateImage(rows, cols, numChannels);
 	im->channelModel = model;
@@ -138,6 +140,28 @@ int getBytesFromImage(uint8_t* data, Image* im) {
 	
 	return 0;
 	
+}
+
+int copyImageChannelData(size_t destChannel, Image* dest, size_t sourceChannel, Image* source) {
+	if(!dest || !source) {
+		printf("Cannot copy NULL images\n");
+		return -1;
+	}
+	if(destChannel >= dest->numChannels || sourceChannel >= source->numChannels) {
+		printf("Channel index out of range in copying image channel");
+		return -1;
+	}
+	if(!imageHasSameSize(dest, source)) {
+		printf("Cannot copy source image channel to destination channel with different size\n");
+		return -1;
+	}
+	
+	size_t i;
+	for(i = 0; i < source->rows * source->cols * source->numChannels; i += source->numChannels) {
+		dest->data[i] = source->data[i];
+	}
+	
+	return 0;
 }
 
 int copyImageData(Image* dest, Image* source) {

@@ -8,6 +8,9 @@
 im_t getImageMaxChannelValue(size_t channel, Image* image);
 im_t getImageMinChannelValue(size_t channel, Image* image);
 
+int setImageChannelBorder(im_t val, size_t borderRows, size_t borderCols, size_t channel, Image* im);
+int setImageBorder(im_t val, size_t borderRows, size_t borderCols, Image* im);
+
 int sumImages(Image* dest, Image* summand1, Image* summand2);
 Image* createImageFromSum(Image* summand1, Image* summand2);
 
@@ -42,11 +45,24 @@ int histogramEqualizeImageChannel(size_t channel, Image* source);
 int applyImageChannelKernel(size_t kernelRows, size_t kernelCols,
 		float kernel[kernelRows][kernelCols], size_t channel, Image* im);
 
+int applyImageKernel(size_t kernelRows, size_t kernelCols,
+		float kernel[kernelRows][kernelCols], Image* im);
+
 //int applyImageChannelMedianFilter(size_t filterRows, size_t filterCols, size_t channel, Image* im);
 
 Image* computeGradientImage(Image* im);
 Image* computeGradientImageApprox(Image* im);
 
 int imageAbsoluteValue(Image* im);
+
+int truncateImageRange(im_t minVal, im_t maxVal, Image* im);
+
+int convertScalerRGB_HSI(float* destHSI, float* sourceRGB);
+int convertScalerHSI_RGB(float* destRGB, float* sourceHSI);
+int convertPixelRGB_HSI(im_t* destHSI, im_t* sourceRGB);
+int convertPixelHSI_RGB(im_t* destRGB, im_t* sourceHSI);
+
+Image* convertImageRGB_HSI(Image* im);
+Image* convertImageHSI_RGB(Image* im);
 
 #endif
