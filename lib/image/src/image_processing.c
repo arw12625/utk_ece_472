@@ -623,7 +623,7 @@ Image* computeGradientImage(Image* im) {
 				dx = xp - xn;
 				dy = yp - yn;
 				
-				val = 0.25 * sqrt(dx * dx + dy * dy);
+				val = 0.5 * sqrt(dx * dx + dy * dy);
 				setImageValue((im_t)val, i, j, channel, gradIm);
 			}
 		}
