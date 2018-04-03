@@ -16,6 +16,7 @@ Image* createImageFromSum(Image* summand1, Image* summand2);
 
 int scaleImage(float scaler, Image* im);
 int scaleImageChannel(float scaler, size_t channel, Image* im);
+int scaleImageChannels(float *channelScalers, Image* im);
 
 //operates on the values of the image channel by the affine interval map from [a1, b1] to [a2, b2]
 int intervalMapImageChannel(im_t a1, im_t b1, im_t a2, im_t b2, size_t channel, Image* im);

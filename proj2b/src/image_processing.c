@@ -169,6 +169,25 @@ int scaleImageChannel(float scaler, size_t channel, Image* im) {
 	return 0;
 }
 
+int scaleImageChannels(float *channelScalers, Image* im) {
+	if(!im) {
+		printf("Cannot scale NULL image\n");
+		return -1;
+	}
+	if(!channelScalers) {
+		printf("Cannot scale Image with NULL channel scalers\n");
+		return -1;
+	}
+	size_t i, j;
+	size_t numEntries = im->rows * im->cols * im->numChannels;
+	for(i = 0; i < numEntries; i+= im->numChannels) {
+		for(j = 0; j < im->numChannels; j++) {
+			im->data[i + j] = (im_t)(im->data[i + j] * channelScalers[j]);
+		}
+	}
+	return 0;
+}
+
 //operates on the values of the image channel by the affine interval map from [a1, b1] to [a2, b2]
 int intervalMapImageChannel(im_t a1, im_t b1, im_t a2, im_t b2, size_t channel, Image* im) {
 	if(!im) {

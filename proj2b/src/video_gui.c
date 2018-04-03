@@ -178,8 +178,6 @@ int gradientRangeOption = RANGE_TRUNCATE;
 
 float rgbScalers[3] = {1,1,1};
 float hsiScalers[3] = {1,1,1};
-float old_rgbScalers[3];
-float old_hsiScalers[3];
 
 void updateNuklearWindow(GLFWwindow* win, struct nk_context* ctx) {
 	clock_gettime(CLOCK_MONOTONIC, &currentTime);
@@ -343,28 +341,6 @@ void updateNuklearWindow(GLFWwindow* win, struct nk_context* ctx) {
 		nk_layout_row_dynamic(ctx, 30, 2);
 		nk_label(ctx, "I", NK_TEXT_LEFT);
 		nk_slider_float(ctx, 0, &(hsiScalers[CHANNEL_INTENSITY]), 1,  1.0 / (IMAGE_SCALE - 1));
-
-		
-		size_t scaleIndex;
-		bool rgbChanged = false;
-		bool hsiChanged = false;
-		for(scaleIndex = 0; scaleIndex < 3; scaleIndex++) {
-			rgbChanged = rgbChanged || (old_rgbScalers[scaleIndex] != rgbScalers[scaleIndex]);
-			old_rgbScalers[scaleIndex] = rgbScalers[scaleIndex];
-			hsiChanged = hsiChanged || (old_hsiScalers[scaleIndex] != hsiScalers[scaleIndex]);
-			old_hsiScalers[scaleIndex] = hsiScalers[scaleIndex];
-		}
-		if(rgbChanged) {
-			convertScalerRGB_HSI(hsiScalers, rgbScalers);
-			for(scaleIndex = 0; scaleIndex < 3; scaleIndex++) {
-				old_hsiScalers[scaleIndex] = hsiScalers[scaleIndex];
-			}
-		} else if(hsiChanged) {
-			convertScalerHSI_RGB(rgbScalers, hsiScalers);
-			for(scaleIndex = 0; scaleIndex < 3; scaleIndex++) {
-				old_rgbScalers[scaleIndex] = rgbScalers[scaleIndex];
-			}
-		}
 		
 		nk_end(ctx);
 	}
@@ -460,15 +436,16 @@ bool processFrame(AVFrame *frame, int frameNumber, void* arg) {
 		//RGB HSI Scale
 		if(processSelection == VID_PROC_RGB) {
 			
+			scaleImageChannels(rgbScalers, frameImage);
 			
-			scaleImageChannel(rgbScalers[CHANNEL_RED], CHANNEL_RED, frameImage);
-			scaleImageChannel(rgbScalers[CHANNEL_GREEN], CHANNEL_GREEN, frameImage);
-			scaleImageChannel(rgbScalers[CHANNEL_BLUE], CHANNEL_BLUE, frameImage);
-			//Image* hsiImage = convertImageRGB_HSI(frameImage);
-			//Image* rgbImage = convertImageHSI_RGB(hsiImage);
-			getBytesFromImage(frame->data[0], frameImage);
-			//freeImage(hsiImage);
-			//freeImage(rgbImage);
+			Image* hsiImage = convertImageRGB_HSI(frameImage);
+			scaleImageChannels(hsiScalers, hsiImage);
+			
+			Image* rgbImage = convertImageHSI_RGB(hsiImage);
+			getBytesFromImage(frame->data[0], rgbImage);
+			
+			freeImage(hsiImage);
+			freeImage(rgbImage);
 		}
 		
 		freeImage(frameImage);
