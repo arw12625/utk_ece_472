@@ -1,3 +1,8 @@
+/*
+ * This file contains implementations of basic image operations such as memory management.
+ * Images are represented by the struct Image defined in image.h
+ */
+
 #include "image.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -158,7 +163,7 @@ int copyImageChannelData(size_t destChannel, Image* dest, size_t sourceChannel, 
 	
 	size_t i;
 	for(i = 0; i < source->rows * source->cols * source->numChannels; i += source->numChannels) {
-		dest->data[i] = source->data[i];
+		dest->data[i + destChannel] = source->data[i + sourceChannel];
 	}
 	
 	return 0;

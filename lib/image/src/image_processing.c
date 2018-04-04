@@ -1,4 +1,6 @@
-
+/*
+ * This file contains implementations of various image processing operations
+ */
 
 #include "image_processing.h"
 
@@ -715,83 +717,9 @@ int truncateImageRange(im_t minVal, im_t maxVal, Image* im) {
 
 float PI = 3.14159;
 
-int convertScalerRGB_HSI(float* destHSI, float* sourceRGB) {
-	float r,g,b;
-	float h, s, i, w, t;
-	
-	r = sourceRGB[CHANNEL_RED];
-	g = sourceRGB[CHANNEL_GREEN];
-	b = sourceRGB[CHANNEL_BLUE];
-	
-	t = r + g + b;
-	i = t / 3.0;
-	
-	if(r == g && g == b) {
-		s = 0;
-		h = 0;
-	} else {
-		w = 0.5 * (r - g + r - b) / sqrt((r - g) * (r - g) + (r - b) * (g - b));
-		if(w > 1) { w = 1;}
-		if(w < -1) { w = -1;}
-		h = acos(w);
-		if(b > g) { h = 2 * PI - h;}
-		if(r <= g && r <= b) { s = 1 - r / i;}
-		if(g <= r && g <= b) { s = 1 - g / i;}
-		if(b <= r && b <= g) { s = 1 - b / i;}
-	}
-	
-	destHSI[CHANNEL_HUE] = h / 2 / PI;
-	destHSI[CHANNEL_SATURATION] = s;
-	destHSI[CHANNEL_INTENSITY] = i;
-	
-	return 0;
-}
-
-int convertScalerHSI_RGB(float* destRGB, float* sourceHSI) {
-	
-	float h,s,i;
-	float r, g, b;
-	
-	h = sourceHSI[CHANNEL_HUE] * 2 * PI;
-	s = sourceHSI[CHANNEL_SATURATION];
-	i = sourceHSI[CHANNEL_INTENSITY];
-	
-	if(s > 1) {s = 1;}
-	if(i > 1) {i = 1;}
-	if(s == 0) {
-		r = g = b = i;
-	} else {
-		if (h >= 0 && h < 2 * PI / 3) {
-			b = (1 - s) / 3;
-			r = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
-			g = 1 - r - b;
-		} else if(h >= 2 * PI / 3 && h < 4 * PI / 3) {
-			h = h - 2 * PI / 3;
-		r = (1 - s) / 3;
-		g = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
-			b = 1 - r - g;
-		} else if(h >= 4 * PI / 3 && h < 2 * PI) {
-			h = h - 4 * PI / 3;
-			g = (1 - s) / 3;
-			b = (1 + s * cos(h) / cos(PI / 3 - h)) / 3;
-			r = 1 - b - g;
-		}
-		
-		if(r < 0) {r = 0;}
-		if(g < 0) {g = 0;}
-		if(b < 0) {b = 0;}
-		r *= i * 3; g *= i * 3; b *= i * 3;
-		if(r > 1) {r = 1;}
-		if(g > 1) {g = 1;}
-		if(b > 1) {b = 1;}
-		
-	}
-		
-	destRGB[CHANNEL_RED] = r;
-	destRGB[CHANNEL_GREEN] = g;
-	destRGB[CHANNEL_BLUE] = b;
-}
-
+//Convert a single RGB pixel represented by an array {red, green, blue} with type im_t
+//	to a single HSI pixel represented by an array {hue, sat, int} with type im_t
+//Values should be in the range 0 to (IMAGE_SCALE - 1)
 int convertPixelRGB_HSI(im_t* destHSI, im_t* sourceRGB) {
 	
 	float r,g,b;
@@ -825,6 +753,9 @@ int convertPixelRGB_HSI(im_t* destHSI, im_t* sourceRGB) {
 	return 0;
 }
 
+//Convert a single HSI pixel represented by an array {hue, sat, int} with type im_t
+// to a single RGB pixel represented by an array {red, green, blue} with type im_t 
+//Values should be in the range 0 to (IMAGE_SCALE - 1)
 int convertPixelHSI_RGB(im_t* destRGB, im_t* sourceHSI) {
 	
 	float h,s,i;
@@ -870,7 +801,7 @@ int convertPixelHSI_RGB(im_t* destRGB, im_t* sourceHSI) {
 	destRGB[CHANNEL_BLUE] = (im_t)(b * (IMAGE_SCALE - 1));
 }
 
-
+//Convert an RGB image to HSI
 Image* convertImageRGB_HSI(Image* im) {
 	if(!im) {
 		printf("Cannot convert NULL image\n");
@@ -916,7 +847,7 @@ Image* convertImageRGB_HSI(Image* im) {
 	return hsiImage;
 }
 
-
+//Convert an HSI image to RGB
 Image* convertImageHSI_RGB(Image* im) {
 	if(!im) {
 		printf("Cannot convert NULL image\n");

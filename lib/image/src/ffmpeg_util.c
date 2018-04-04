@@ -1,5 +1,10 @@
-/*
- * Code modified from example code at
+/* 
+ * This file contains the implementation of a basic mpeg video reader/writer
+ *		using streams with the LIBAV/FFMPEG library.
+ * As frames are read, they are processed with a callback specified in the processVideo function
+ * Frames can be written to an output with the writeVideoFrame function
+ *
+ * Code influenced from example code at
  * http://dranger.com/ffmpeg/tutorial01.html
  * https://github.com/libav/libav/tree/master/doc/examples
  */

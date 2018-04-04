@@ -24,7 +24,9 @@ Then the library files are in the build/scr directory.
 The nuklear glfw backend also depends on glew. I am using the provided Windows binaries provided at
 http://glew.sourceforge.net/
 
+In order for shaders to compile, the correct version must be specified in the preprocessor directive NK_SHADER_VERSION in "nuklear_glfw_gl3.h". For me this was
+#define NK_SHADER_VERSION "#version 330 core\n"
+
 
 TODO
-Replace old image and matrix library with new implementation.
 Explore further abstracting ffmpeg io functions and nuklear gui functions to produce cleaner project code.
